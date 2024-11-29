@@ -9,6 +9,7 @@
 #include "CommonArgs.h"
 #include "Arch/AArch64.h"
 #include "Arch/ARM.h"
+#include "Arch/BPF.h"
 #include "Arch/CSKY.h"
 #include "Arch/LoongArch.h"
 #include "Arch/M68k.h"
@@ -633,6 +634,7 @@ std::string tools::getCPUName(const Driver &D, const ArgList &Args,
 
   case llvm::Triple::bpfel:
   case llvm::Triple::bpfeb:
+  case llvm::Triple::sbf:
     if (const Arg *A = Args.getLastArg(options::OPT_mcpu_EQ))
       return A->getValue();
     return "";
@@ -714,6 +716,11 @@ void tools::getTargetFeatures(const Driver &D, const llvm::Triple &Triple,
   case llvm::Triple::aarch64_32:
   case llvm::Triple::aarch64_be:
     aarch64::getAArch64TargetFeatures(D, Triple, Args, Features, ForAS);
+    break;
+  case llvm::Triple::bpfeb:
+  case llvm::Triple::bpfel:
+  case llvm::Triple::sbf:
+    bpf::getBPFTargetFeatures(D, Args, Features);
     break;
   case llvm::Triple::x86:
   case llvm::Triple::x86_64:

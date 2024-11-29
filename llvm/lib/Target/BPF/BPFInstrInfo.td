@@ -68,6 +68,7 @@ class ImmediateAsmOperand<string name> : AsmOperandClass {
 }
 
 def SImm16AsmOperand : ImmediateAsmOperand<"SImm16">;
+def BPFSubtargetSolana : Predicate<"Subtarget->isSolana()">;
 
 def brtarget : Operand<OtherVT> {
   let PrintMethod = "printBrTargetOperand";
@@ -331,24 +332,29 @@ multiclass ALU<BPFArithOp Opc, int off, string OpcodeStr, SDNode OpNode> {
 }
 
 let Constraints = "$dst = $src2" in {
-let isAsCheapAsAMove = 1 in {
-  defm ADD : ALU<BPF_ADD, 0, "+=", add>;
-  defm SUB : ALU<BPF_SUB, 0, "-=", sub>;
-  defm OR  : ALU<BPF_OR, 0, "|=", or>;
-  defm AND : ALU<BPF_AND, 0, "&=", and>;
-  defm SLL : ALU<BPF_LSH, 0, "<<=", shl>;
-  defm SRL : ALU<BPF_RSH, 0, ">>=", srl>;
-  defm XOR : ALU<BPF_XOR, 0, "^=", xor>;
-  defm SRA : ALU<BPF_ARSH, 0, "s>>=", sra>;
-}
-  defm MUL : ALU<BPF_MUL, 0, "*=", mul>;
-  defm DIV : ALU<BPF_DIV, 0, "/=", udiv>;
-  defm MOD : ALU<BPF_MOD, 0, "%=", urem>;
+    let isAsCheapAsAMove = 1 in {
+        defm ADD : ALU<BPF_ADD, 0, "+=", add>;
+        defm SUB : ALU<BPF_SUB, 0, "-=", sub>;
+        defm OR  : ALU<BPF_OR, 0, "|=", or>;
+        defm AND : ALU<BPF_AND, 0, "&=", and>;
+        defm SLL : ALU<BPF_LSH, 0, "<<=", shl>;
+        defm SRL : ALU<BPF_RSH, 0, ">>=", srl>;
+        defm XOR : ALU<BPF_XOR, 0, "^=", xor>;
+        defm SRA : ALU<BPF_ARSH, 0, "s>>=", sra>;
+    }
 
-  let Predicates = [BPFHasSdivSmod] in {
-    defm SDIV : ALU<BPF_DIV, 1, "s/=", sdiv>;
-    defm SMOD : ALU<BPF_MOD, 1, "s%=", srem>;
-  }
+    defm MUL : ALU<BPF_MUL, 0, "*=", mul>;
+    defm DIV : ALU<BPF_DIV, 0, "/=", udiv>;
+    defm MOD : ALU<BPF_MOD, 0, "%=", urem>;
+
+    let Predicates = [BPFSubtargetSolana] in {
+        defm SDIV_SOL : ALU<BPF_SDIV, 0, "/s=", sdiv>;
+    }
+
+    let Predicates = [BPFHasSdivSmod] in {
+        defm SDIV : ALU<BPF_DIV, 1, "s/=", sdiv>;
+        defm SMOD : ALU<BPF_MOD, 1, "s%=", srem>;
+    }
 }
 
 class NEG_RR<BPFOpClass Class, BPFArithOp Opc,
@@ -915,6 +921,14 @@ def : Pat<(atomic_load_sub_i32 ADDRri:$addr, GPR32:$val),
           (XFADDW32 ADDRri:$addr, (NEG_32 GPR32:$val))>;
 def : Pat<(atomic_load_sub_i64 ADDRri:$addr, GPR:$val),
           (XFADDD ADDRri:$addr, (NEG_64 GPR:$val))>;
+
+let Predicates = [BPFSubtargetSolana], usesCustomInserter = 1, isCodeGenOnly = 1 in {
+  def ATOMIC_FENCE : Pseudo<
+    (outs),
+    (ins),
+    "#atomic_fence",
+    [(atomic_fence timm, timm)]>;
+}
 
 // Atomic Exchange
 class XCHG<BPFWidthModifer SizeOp, string OpcodeStr, PatFrag OpNode>

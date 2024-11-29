@@ -568,7 +568,6 @@ std::string CodeGenInstruction::FlattenAsmStringVariants(StringRef Cur,
     for (unsigned i = 0; i != Variant; ++i)
       Selection = Selection.split('|').second;
     Res += Selection.split('|').first;
-
     assert(VariantsEnd != Cur.size() &&
            "Unterminated variants in assembly string!");
     Cur = Cur.substr(VariantsEnd + 1);

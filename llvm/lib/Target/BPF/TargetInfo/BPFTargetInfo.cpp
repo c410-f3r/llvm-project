@@ -30,6 +30,6 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeBPFTargetInfo() {
                                  true);
   RegisterTarget<Triple::bpfel, /*HasJIT=*/true> X(
       getTheBPFleTarget(), "bpfel", "BPF (little endian)", "BPF");
-  RegisterTarget<Triple::bpfeb, /*HasJIT=*/true> Y(getTheBPFbeTarget(), "bpfeb",
-                                                   "BPF (big endian)", "BPF");
+  RegisterTarget<Triple::bpfeb, /*HasJIT=*/true> Y(
+      getTheBPFbeTarget(), "bpfeb", "BPF (big endian)", "BPF");
 }

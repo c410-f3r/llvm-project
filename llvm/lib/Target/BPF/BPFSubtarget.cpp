@@ -43,18 +43,22 @@ static cl::opt<bool>
 
 void BPFSubtarget::anchor() {}
 
-BPFSubtarget &BPFSubtarget::initializeSubtargetDependencies(StringRef CPU,
+BPFSubtarget &BPFSubtarget::initializeSubtargetDependencies(const Triple &TT,
+                                                            StringRef CPU,
                                                             StringRef FS) {
-  initializeEnvironment();
+  initializeEnvironment(TT);
   initSubtargetFeatures(CPU, FS);
-  ParseSubtargetFeatures(CPU, /*TuneCPU*/ CPU, FS);
   return *this;
 }
 
-void BPFSubtarget::initializeEnvironment() {
+void BPFSubtarget::initializeEnvironment(const Triple &TT) {
+  // TODO: jle: remove, sbf is now provided by the SBF backend.
+  IsSolana = false;
   HasJmpExt = false;
   HasJmp32 = false;
   HasAlu32 = false;
+  HasDynamicFrames = false;
+  HasSdiv = false;
   UseDwarfRIS = false;
   HasLdsx = false;
   HasMovsx = false;
@@ -67,17 +71,25 @@ void BPFSubtarget::initializeEnvironment() {
 void BPFSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
   if (CPU == "probe")
     CPU = sys::detail::getHostCPUNameForBPF();
-  if (CPU == "generic" || CPU == "v1")
-    return;
+
+  ParseSubtargetFeatures(CPU, /*TuneCPU*/ CPU, FS);
+
+  if (IsSolana) {
+    report_fatal_error("The Solana target is not supported in BPF. Use SBF instead.");
+  }
+
   if (CPU == "v2") {
     HasJmpExt = true;
-    return;
   }
+
   if (CPU == "v3") {
     HasJmpExt = true;
     HasJmp32 = true;
     HasAlu32 = true;
-    return;
+  }
+
+  if (CPU == "sbfv2" && !HasDynamicFrames) {
+    report_fatal_error("sbfv2 requires dynamic-frames\n", false);
   }
   if (CPU == "v4") {
     HasJmpExt = true;
@@ -95,10 +107,11 @@ void BPFSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
 
 BPFSubtarget::BPFSubtarget(const Triple &TT, const std::string &CPU,
                            const std::string &FS, const TargetMachine &TM)
-    : BPFGenSubtargetInfo(TT, CPU, /*TuneCPU*/ CPU, FS),
-      FrameLowering(initializeSubtargetDependencies(CPU, FS)),
+    : BPFGenSubtargetInfo(TT, CPU, /*TuneCPU*/ CPU, FS), InstrInfo(),
+      FrameLowering(initializeSubtargetDependencies(TT, CPU, FS)),
       TLInfo(TM, *this) {
   IsLittleEndian = TT.isLittleEndian();
+  TSInfo.setSolanaFlag(false);
 
   CallLoweringInfo.reset(new BPFCallLowering(*getTargetLowering()));
   Legalizer.reset(new BPFLegalizerInfo(*this));

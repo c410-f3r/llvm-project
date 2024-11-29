@@ -12,8 +12,10 @@
 
 #include "BPF.h"
 #include "Targets.h"
+#include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/MacroBuilder.h"
 #include "clang/Basic/TargetBuiltins.h"
+#include "clang/Driver/DriverDiagnostic.h"
 #include "llvm/ADT/StringRef.h"
 
 using namespace clang;
@@ -64,10 +66,15 @@ void BPFTargetInfo::getTargetDefines(const LangOptions &Opts,
     Builder.defineMacro("__BPF_FEATURE_GOTOL");
     Builder.defineMacro("__BPF_FEATURE_ST");
   }
+  
+  if (HasSolanaFeature) {
+    Builder.defineMacro("__ELF__");
+  }
 }
+                                    
 
 static constexpr llvm::StringLiteral ValidCPUNames[] = {"generic", "v1", "v2",
-                                                        "v3", "v4", "probe"};
+                                                        "v3", "v4", "probe", "sbfv2"};
 
 bool BPFTargetInfo::isValidCPUName(StringRef Name) const {
   return llvm::is_contained(ValidCPUNames, Name);
@@ -84,6 +91,12 @@ ArrayRef<Builtin::Info> BPFTargetInfo::getTargetBuiltins() const {
 
 bool BPFTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
                                          DiagnosticsEngine &Diags) {
+  // TODO: The SBF back-end now provides the sbf target. Issue deprecation
+  // warning directing use of '-target sbf' instead. Eventually remove the
+  // +solana support from the BPF back-end.
+  if (getTriple().getArch() != llvm::Triple::sbf && HasSolanaFeature)
+    Diags.Report(diag::warn_drv_no_solana_with_bpf);
+
   for (const auto &Feature : Features) {
     if (Feature == "+alu32") {
       HasAlu32 = true;

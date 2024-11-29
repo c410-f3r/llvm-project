@@ -17,6 +17,7 @@
 #include "BPFTargetMachine.h"
 #include "BTFDebug.h"
 #include "MCTargetDesc/BPFInstPrinter.h"
+#include "MCTargetDesc/BPFMCTargetDesc.h"
 #include "TargetInfo/BPFTargetInfo.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
@@ -60,7 +61,9 @@ bool BPFAsmPrinter::doInitialization(Module &M) {
   AsmPrinter::doInitialization(M);
 
   // Only emit BTF when debuginfo available.
-  if (MAI->doesSupportDebugInformation() && !M.debug_compile_units().empty()) {
+  // Unsupported for Solana: https://github.com/anza-xyz/llvm-project/issues/37
+  if (MAI->doesSupportDebugInformation() && !M.debug_compile_units().empty() &&
+      !TM.getMCSubtargetInfo()->hasFeature(BPF::FeatureSolana) && TM.getTargetTriple().getArch() != Triple::sbf) {
     BTF = new BTFDebug(this);
     DebugHandlers.push_back(std::unique_ptr<BTFDebug>(BTF));
   }

@@ -15,6 +15,7 @@
 #include "llvm/MC/MCFixup.h"
 #include "llvm/MC/MCFixupKindInfo.h"
 #include "llvm/MC/MCObjectWriter.h"
+#include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/EndianStream.h"
 #include <cassert>
 #include <cstdint>
@@ -25,7 +26,11 @@ namespace {
 
 class BPFAsmBackend : public MCAsmBackend {
 public:
-  BPFAsmBackend(llvm::endianness Endian) : MCAsmBackend(Endian) {}
+  BPFAsmBackend(endianness Endian, const MCSubtargetInfo &STI)
+      : MCAsmBackend(Endian),
+        isSolana(STI.hasFeature(BPF::FeatureSolana) ||
+                 STI.getTargetTriple().getArch() == Triple::sbf),
+        relocAbs64(STI.hasFeature(BPF::FeatureRelocAbs64)) {}
   ~BPFAsmBackend() override = default;
 
   void applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
@@ -43,6 +48,9 @@ public:
 
   bool writeNopData(raw_ostream &OS, uint64_t Count,
                     const MCSubtargetInfo *STI) const override;
+private:
+  bool isSolana;
+  bool relocAbs64;
 };
 
 } // end anonymous namespace
@@ -117,19 +125,19 @@ void BPFAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
 
 std::unique_ptr<MCObjectTargetWriter>
 BPFAsmBackend::createObjectTargetWriter() const {
-  return createBPFELFObjectWriter(0);
+  return createBPFELFObjectWriter(0, isSolana, relocAbs64);
 }
 
 MCAsmBackend *llvm::createBPFAsmBackend(const Target &T,
                                         const MCSubtargetInfo &STI,
                                         const MCRegisterInfo &MRI,
                                         const MCTargetOptions &) {
-  return new BPFAsmBackend(llvm::endianness::little);
+  return new BPFAsmBackend(endianness::little, STI);
 }
 
 MCAsmBackend *llvm::createBPFbeAsmBackend(const Target &T,
                                           const MCSubtargetInfo &STI,
                                           const MCRegisterInfo &MRI,
                                           const MCTargetOptions &) {
-  return new BPFAsmBackend(llvm::endianness::big);
+  return new BPFAsmBackend(endianness::big, STI);
 }

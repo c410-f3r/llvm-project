@@ -33,8 +33,13 @@ enum NodeType : unsigned {
 }
 
 class BPFTargetLowering : public TargetLowering {
+  const BPFSubtarget *Subtarget;
 public:
   explicit BPFTargetLowering(const TargetMachine &TM, const BPFSubtarget &STI);
+
+  bool allowsMisalignedMemoryAccesses(EVT VT, unsigned, Align,
+                                      MachineMemOperand::Flags,
+                                      unsigned *) const override;
 
   // Provide custom lowering hooks for some operations.
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
@@ -80,6 +85,7 @@ private:
 
   SDValue LowerConstantPool(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerATOMICRMW(SDValue Op, SelectionDAG &DAG) const;
 
   template <class NodeTy>
   SDValue getAddr(NodeTy *N, SelectionDAG &DAG, unsigned Flags = 0) const;
@@ -98,12 +104,20 @@ private:
   SDValue LowerCall(TargetLowering::CallLoweringInfo &CLI,
                     SmallVectorImpl<SDValue> &InVals) const override;
 
+  /// Returns true if arguments should be sign-extended in lib calls.
+  bool shouldSignExtendTypeInLibCall(EVT Type, bool IsSigned) const override;
+
   // Lower incoming arguments, copy physregs into vregs
   SDValue LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv,
                                bool IsVarArg,
                                const SmallVectorImpl<ISD::InputArg> &Ins,
                                const SDLoc &DL, SelectionDAG &DAG,
                                SmallVectorImpl<SDValue> &InVals) const override;
+
+  bool CanLowerReturn(CallingConv::ID CallConv, MachineFunction &MF,
+                        bool IsVarArg,
+                        const SmallVectorImpl<ISD::OutputArg> &Outs,
+                        LLVMContext &Context) const override;
 
   SDValue LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool IsVarArg,
                       const SmallVectorImpl<ISD::OutputArg> &Outs,

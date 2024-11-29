@@ -1380,7 +1380,6 @@ void BTFDebug::beginInstruction(const MachineInstr *MI) {
       constructLineInfo(FuncLabel, S->getFile(), S->getLine(), 0);
       LineInfoGenerated = true;
     }
-
     return;
   }
 

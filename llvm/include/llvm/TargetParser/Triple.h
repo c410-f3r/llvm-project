@@ -46,15 +46,16 @@ public:
   enum ArchType {
     UnknownArch,
 
-    arm,            // ARM (little endian): arm, armv.*, xscale
-    armeb,          // ARM (big endian): armeb
-    aarch64,        // AArch64 (little endian): aarch64
-    aarch64_be,     // AArch64 (big endian): aarch64_be
-    aarch64_32,     // AArch64 (little endian) ILP32: aarch64_32
-    arc,            // ARC: Synopsys ARC
-    avr,            // AVR: Atmel AVR microcontroller
-    bpfel,          // eBPF or extended BPF or 64-bit BPF (little endian)
-    bpfeb,          // eBPF or extended BPF or 64-bit BPF (big endian)
+    arm,        // ARM (little endian): arm, armv.*, xscale
+    armeb,      // ARM (big endian): armeb
+    aarch64,    // AArch64 (little endian): aarch64
+    aarch64_be, // AArch64 (big endian): aarch64_be
+    aarch64_32, // AArch64 (little endian) ILP32: aarch64_32
+    arc,        // ARC: Synopsys ARC
+    avr,        // AVR: Atmel AVR microcontroller
+    bpfel,      // eBPF or extended BPF or 64-bit BPF (little endian)
+    bpfeb,      // eBPF or extended BPF or 64-bit BPF (big endian)
+    sbf,            // Solana dialect of eBPF (little endian)
     csky,           // CSKY: csky
     dxil,           // DXIL 32-bit DirectX bytecode
     hexagon,        // Hexagon: hexagon
@@ -193,6 +194,7 @@ public:
     AMD,
     Mesa,
     SUSE,
+    Solana,
     OpenEmbedded,
     LastVendorType = OpenEmbedded
   };
@@ -235,6 +237,7 @@ public:
     Hurd,       // GNU/Hurd
     WASI,       // Experimental WebAssembly OS
     Emscripten,
+    SolanaOS,
     ShaderModel, // DirectX ShaderModel
     LiteOS,
     Serenity,
@@ -755,6 +758,11 @@ public:
     return getObjectFormat() == Triple::DXContainer;
   }
 
+  /// Tests whether the OS is Solana.
+  bool isOSSolana() const {
+    return getOS() == Triple::SolanaOS;
+  }
+
   /// Tests whether the target is the PS4 platform.
   bool isPS4() const {
     return getArch() == Triple::x86_64 &&
@@ -1049,8 +1057,15 @@ public:
   }
 
   /// Tests whether the target is eBPF.
+  /// TODO/TBD: For new sbf backend, we should probably remove sbf check here.
   bool isBPF() const {
-    return getArch() == Triple::bpfel || getArch() == Triple::bpfeb;
+    return getArch() == Triple::bpfel || getArch() == Triple::bpfeb ||
+           getArch() == Triple::sbf;
+  }
+
+  /// Tests whether the target is SBF (little endian).
+  bool isSBF() const {
+    return getArch() == Triple::sbf;
   }
 
   /// Tests if the target forces 64-bit time_t on a 32-bit architecture.

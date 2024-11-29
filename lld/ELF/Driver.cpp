@@ -162,6 +162,7 @@ bool link(ArrayRef<const char *> args, llvm::raw_ostream &stdoutOS,
 
   elf::ctx.driver.linkerMain(args);
 
+  ctx->e.handleEarlyExit();
   return errorCount() == 0;
 }
 } // namespace elf
@@ -359,17 +360,6 @@ void LinkerDriver::addLibrary(StringRef name) {
     addFile(saver().save(*path), /*withLOption=*/true);
   else
     error("unable to find library -l" + name, ErrorTag::LibNotFound, {name});
-}
-
-// This function is called on startup. We need this for LTO since
-// LTO calls LLVM functions to compile bitcode files to native code.
-// Technically this can be delayed until we read bitcode files, but
-// we don't bother to do lazily because the initialization is fast.
-static void initLLVM() {
-  InitializeAllTargets();
-  InitializeAllTargetMCs();
-  InitializeAllAsmPrinters();
-  InitializeAllAsmParsers();
 }
 
 // Some command line options or some combinations of them are not allowed.
@@ -668,7 +658,6 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
   {
     llvm::TimeTraceScope timeScope("ExecuteLinker");
 
-    initLLVM();
     createFiles(args);
     if (errorCount())
       return;
@@ -1843,7 +1832,8 @@ static void setConfigs(opt::InputArgList &args) {
   // builds and disabled otherwise. This check is enabled when writeAddends is
   // true.
 #ifndef NDEBUG
-  bool checkDynamicRelocsDefault = true;
+  // The SBF and BPF target for Solana do not support checking dynamic relocs.
+  bool checkDynamicRelocsDefault = m != EM_BPF && m != EM_SBF;
 #else
   bool checkDynamicRelocsDefault = false;
 #endif
